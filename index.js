@@ -1,3 +1,4 @@
+```
 const {
     Client,
     GatewayIntentBits,
@@ -87,7 +88,7 @@ client.once('ready', () => {
 });
 
 // ==========================================
-// HEDEF BULMA FONKSİYONU (REPLY VE MENTION UYUMLU)
+// HEDEF BULMA FONKSİYONU
 // ==========================================
 
 async function hedefBul(message) {
@@ -228,15 +229,14 @@ client.on('messageCreate', async (message) => {
     }
 
     // ==========================================
-    // YETKİLİ KOMUTLARI (BAN, UNBAN, MUTE, UNMUTE)
+    // YETKİLİ KOMUTLARI
     // ==========================================
 
-    // !BAN KOMUTU
+    // !BAN
     if (command === 'ban') {
         if (!message.member.permissions.has(PermissionFlagsBits.BanMembers)) {
             return message.reply('❌ Bu komutu kullanmak için `Üyeleri Engelle` yetkin olmalı.');
         }
-
         const hedefKullanici = await hedefBul(message);
         if (!hedefKullanici) return message.reply('❌ Lütfen bir üyeyi etiketleyin veya mesajını yanıtlayın.');
         if (!rolKontrol(message, hedefKullanici)) return message.reply('❌ Bu üyenin rolü seninle aynı veya senden daha yüksek!');
@@ -247,14 +247,13 @@ client.on('messageCreate', async (message) => {
         message.channel.send(`🔨 **${hedefKullanici.user.username}** başarıyla sunucudan yasaklandı. Sebep: \`${sebep}\``);
     }
 
-    // !UNBAN KOMUTU
+    // !UNBAN
     if (command === 'unban') {
         if (!message.member.permissions.has(PermissionFlagsBits.BanMembers)) {
             return message.reply('❌ Bu komutu kullanmak için `Üyeleri Engelle` yetkin olmalı.');
         }
-
         const id = args[0];
-        if (!id) return message.reply('❌ Lütfen yasağını kaldırmak istediğiniz kullanıcının ID\'sini yazın. Örn: `!unban 123456789`');
+        if (!id) return message.reply('❌ Lütfen yasağını kaldırmak istediğiniz kullanıcının ID\'sini yazın.');
 
         try {
             await message.guild.members.unban(id);
@@ -264,64 +263,80 @@ client.on('messageCreate', async (message) => {
         }
     }
 
-    // !MUTE KOMUTU
+    // !MUTE
     if (command === 'mute') {
         if (!message.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
             return message.reply('❌ Bu komutu kullanmak için `Üyeleri Sustur` yetkin olmalı.');
         }
-
         const hedefKullanici = await hedefBul(message);
         if (!hedefKullanici) return message.reply('❌ Lütfen bir üyeyi etiketleyin veya mesajını yanıtlayın.');
         if (!rolKontrol(message, hedefKullanici)) return message.reply('❌ Bu üyenin rolü seninle aynı veya senden daha yüksek!');
         
-        // Varsayılan olarak 1 saat susturur
         try {
             await hedefKullanici.timeout(60 * 60 * 1000, 'Yetkili tarafından susturuldu.');
             message.channel.send(`🔇 **${hedefKullanici.user.username}** 1 saatliğine susturuldu.`);
         } catch (error) {
-            message.reply('❌ Kullanıcı susturulurken bir hata oluştu. Rol sıralamasını kontrol edin.');
+            message.reply('❌ Kullanıcı susturulurken bir hata oluştu.');
         }
     }
 
-    // !UNMUTE KOMUTU
+    // !UNMUTE
     if (command === 'unmute') {
         if (!message.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-return message.reply('❌ Bu komutu kullanmak için Üyeleri Sustur yetkin olmalı.');
+            return message.reply('❌ Bu komutu kullanmak için `Üyeleri Sustur` yetkin olmalı.');
         }
         const hedefKullanici = await hedefBul(message);
-        if (!hedefKullanici) return message.reply('❌ Lütfen bir üyeyi etiketleyin veya mesajını
-                                                  yanıtlayın.');
-            try {
-            await hedefKullanici.timeout(null);
-            message.channel.send(🔊 **${hedefKullanici.user.username}** kullanıcısının
-                susturulması kaldırıldı.);
-        } catch (error) {
-            message.reply('❌ Kullanıcının susturulması kaldırılırken bir hata oluştu.');
-        }
-    }
+        if (!hedefKullanici) return message.reply('❌ Lütfen bir üyeyi etiketleyin veya mesajını yanıtlayın.');
+
+```
+
+Kodu dikkatli kullanın.
+
+svg
+
+try {
+await hedefKullanici.timeout(null);
+message.channel.send(`🔊 **${hedefKullanici.user.username}** kullanıcısının susturulması kaldırıldı.`);
+} catch (error) {
+message.reply('❌ Kullanıcının susturulması kaldırılırken bir hata oluştu.');
+}
+}
 });
+
+// ==========================================
+// MENÜ SEÇİMLERİNİ DİNLEME SİSTEMİ (DÜZELTİLEN YER)
+// ==========================================
 client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isStringSelectMenu()) return;
-    
-    if (interaction.customId === 'yardim_menu') {
-        const secim = interaction.values[0];
-        const guncelEmbed = new EmbedBuilder().setColor('#ff0000');
-        if (secim === 'ana_menu') {
-            guncelEmbed
-                .setTitle('🏡 Ana Menü')
-                .setDescription('!yardım - Yardım menüsünü açar.\n**!rank** - Seviyenizi
-                                gösterir.\n**!avatar** - Profil resminizi gösterir.');
-                } else if (secim === 'kullanici') {
-            guncelEmbed.setTitle('👑 Kullanıcı Komutları')
-                .setDescription('!rank - Seviye durumunuzu listeler.\n**!avatar** - Resminizi büyütür.');
-        } else if (secim === 'yetkili') {
-            guncelEmbed
-                .setTitle('🔨 Yetkili Komutları')
-                .setDescription('!ban - Üyeyi yasaklar.\n**!unban** - Üyenin yasağını kaldırır (ID
-                                ile).\n**!mute** - Üyeyi 1 saat susturur.\n**!unmute** - Üyenin susturmasını kaldırır.');
-                }
-        
-     await interaction.update({ embeds: [guncelEmbed] });
-    }
+if (!interaction.isStringSelectMenu()) return;
+
+if (interaction.customId === 'yardim\_menu') {
+// Liste yapısı düzeltildi [0] eklendi
+const secim = interaction.values[0];
+
+const guncelEmbed = new EmbedBuilder().setColor('#ff0000');
+
+if (secim === 'ana\_menu') {
+guncelEmbed
+.setTitle('🏡 Ana Menü')
+.setDescription('**!yardım** - Yardım menüsünü açar.\n\*\*!rank\*\* - Seviyenizi gösterir.\n\*\*!avatar\*\* - Profil resminizi gösterir.');
+} else if (secim === 'kullanici') {
+guncelEmbed
+.setTitle('👑 Kullanıcı Komutları')
+.setDescription('**!rank** - Seviye durumunuzu listeler.\n\*\*!avatar\*\* - Resminizi büyütür.');
+} else if (secim === 'yetkili') {
+guncelEmbed
+.setTitle('🔨 Yetkili Komutları')
+.setDescription('**!ban** - Üyeyi yasaklar.\n\*\*!unban\*\* - Üyenin yasağını kaldırır (ID ile).\n\*\*!mute\*\* - Üyeyi 1 saat susturur.\n\*\*!unmute\*\* - Üyenin susturmasını kaldırır.');
+}
+
+await interaction.update({ embeds: [guncelEmbed] });
+}
 });
+
+// ==========================================
+// BOT GİRİŞİ
+// ==========================================
 client.login(process.env.TOKEN);
+
+```
+```
