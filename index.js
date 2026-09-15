@@ -270,7 +270,7 @@ client.on('messageCreate', async (message) => {
         }
         const hedefKullanici = await hedefBul(message);
         if (!hedefKullanici) return message.reply('❌ Lütfen bir üyeyi etiketleyin veya mesajını yanıtlayın.');
-        if (!rolKontrol(message, hedefKullanici)) return message.reply('❌ Bu üyenin rolü seninle aynı veya senden daha yüksek!');
+        if (!rolKontrol(message, codebase_name)) return message.reply('❌ Bu üyenin rolü seninle aynı veya senden daha yüksek!');
         
         try {
             await hedefKullanici.timeout(60 * 60 * 1000, 'Yetkili tarafından susturuldu.');
@@ -288,12 +288,6 @@ client.on('messageCreate', async (message) => {
         const hedefKullanici = await hedefBul(message);
         if (!hedefKullanici) return message.reply('❌ Lütfen bir üyeyi etiketleyin veya mesajını yanıtlayın.');
 
-```
-
-Kodu dikkatli kullanın.
-
-svg
-
 try {
 await hedefKullanici.timeout(null);
 message.channel.send(`🔊 **${hedefKullanici.user.username}** kullanıcısının susturulması kaldırıldı.`);
@@ -304,13 +298,13 @@ message.reply('❌ Kullanıcının susturulması kaldırılırken bir hata oluş
 });
 
 // ==========================================
-// MENÜ SEÇİMLERİNİ DİNLEME SİSTEMİ (DÜZELTİLEN YER)
+// MENÜ SEÇİMLERİNİ DİNLEME SİSTEMİ (KESİN ÇÖZÜM)
 // ==========================================
 client.on('interactionCreate', async (interaction) => {
 if (!interaction.isStringSelectMenu()) return;
 
 if (interaction.customId === 'yardim\_menu') {
-// Liste yapısı düzeltildi [0] eklendi
+// [0] eklenerek listenin içindeki kelimeye doğrudan ulaşıldı
 const secim = interaction.values[0];
 
 const guncelEmbed = new EmbedBuilder().setColor('#ff0000');
