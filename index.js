@@ -87,7 +87,7 @@ client.once('ready', () => {
 });
 
 // ==========================================
-// HEDEF BULMA FONKSİYONU
+// HEDEF BULMA FONKSİYONU (REPLY VE MENTION UYUMLU)
 // ==========================================
 
 async function hedefBul(message) {
@@ -112,6 +112,17 @@ async function hedefBul(message) {
         }
     }
     return null;
+}
+
+// ==========================================
+// ROL KONTROLÜ
+// ==========================================
+
+function rolKontrol(message, hedef) {
+    if (!message.member) return false;
+    if (message.author.id === message.guild.ownerId) return true;
+    if (hedef.roles.highest.position >= message.member.roles.highest.position) return false;
+    return true;
 }
 
 // ==========================================
@@ -152,7 +163,7 @@ client.on('messageCreate', async (message) => {
         }
     }
 
-    // KOMUT KONTROL
+    // KOMUT KONTROLÜ
     if (!message.content.startsWith('!')) return;
 
     const args = message.content.slice(1).trim().split(/\s+/);
@@ -215,39 +226,102 @@ client.on('messageCreate', async (message) => {
 
         message.reply({ embeds: [avatarEmbed] });
     }
-});
 
-// ==========================================
-// MENÜ SEÇİMLERİNİ DİNLEME SİSTEMİ (HATAYI ÇÖZEN KISIM)
-// ==========================================
+    // ==========================================
+    // YETKİLİ KOMUTLARI (BAN, UNBAN, MUTE, UNMUTE)
+    // ==========================================
+
+    // !BAN KOMUTU
+    if (command === 'ban') {
+        if (!message.member.permissions.has(PermissionFlagsBits.BanMembers)) {
+            return message.reply('❌ Bu komutu kullanmak için `Üyeleri Engelle` yetkin olmalı.');
+        }
+
+        const hedefKullanici = await hedefBul(message);
+        if (!hedefKullanici) return message.reply('❌ Lütfen bir üyeyi etiketleyin veya mesajını yanıtlayın.');
+        if (!rolKontrol(message, hedefKullanici)) return message.reply('❌ Bu üyenin rolü seninle aynı veya senden daha yüksek!');
+        if (!hedefKullanici.bannable) return message.reply('❌ Bu üyeyi engellemek için yetkim yetmiyor.');
+
+        const sebep = args.join(' ') || 'Sebep belirtilmedi.';
+        await hedefKullanici.ban({ reason: sebep });
+        message.channel.send(`🔨 **${hedefKullanici.user.username}** başarıyla sunucudan yasaklandı. Sebep: \`${sebep}\``);
+    }
+
+    // !UNBAN KOMUTU
+    if (command === 'unban') {
+        if (!message.member.permissions.has(PermissionFlagsBits.BanMembers)) {
+            return message.reply('❌ Bu komutu kullanmak için `Üyeleri Engelle` yetkin olmalı.');
+        }
+
+        const id = args[0];
+        if (!id) return message.reply('❌ Lütfen yasağını kaldırmak istediğiniz kullanıcının ID\'sini yazın. Örn: `!unban 123456789`');
+
+        try {
+            await message.guild.members.unban(id);
+            message.channel.send(`✅ ID'si belirtilen kullanıcının yasaklaması başarıyla kaldırıldı.`);
+        } catch (error) {
+            message.reply('❌ Bu ID\'ye sahip bir yasaklama bulunamadı veya bir hata oluştu.');
+        }
+    }
+
+    // !MUTE KOMUTU
+    if (command === 'mute') {
+        if (!message.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
+            return message.reply('❌ Bu komutu kullanmak için `Üyeleri Sustur` yetkin olmalı.');
+        }
+
+        const hedefKullanici = await hedefBul(message);
+        if (!hedefKullanici) return message.reply('❌ Lütfen bir üyeyi etiketleyin veya mesajını yanıtlayın.');
+        if (!rolKontrol(message, hedefKullanici)) return message.reply('❌ Bu üyenin rolü seninle aynı veya senden daha yüksek!');
+        
+        // Varsayılan olarak 1 saat susturur
+        try {
+            await hedefKullanici.timeout(60 * 60 * 1000, 'Yetkili tarafından susturuldu.');
+            message.channel.send(`🔇 **${hedefKullanici.user.username}** 1 saatliğine susturuldu.`);
+        } catch (error) {
+            message.reply('❌ Kullanıcı susturulurken bir hata oluştu. Rol sıralamasını kontrol edin.');
+        }
+    }
+
+    // !UNMUTE KOMUTU
+    if (command === 'unmute') {
+        if (!message.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
+return message.reply('❌ Bu komutu kullanmak için Üyeleri Sustur yetkin olmalı.');
+        }
+        const hedefKullanici = await hedefBul(message);
+        if (!hedefKullanici) return message.reply('❌ Lütfen bir üyeyi etiketleyin veya mesajını
+                                                  yanıtlayın.');
+            try {
+            await hedefKullanici.timeout(null);
+            message.channel.send(🔊 **${hedefKullanici.user.username}** kullanıcısının
+                susturulması kaldırıldı.);
+        } catch (error) {
+            message.reply('❌ Kullanıcının susturulması kaldırılırken bir hata oluştu.');
+        }
+    }
+});
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isStringSelectMenu()) return;
-
+    
     if (interaction.customId === 'yardim_menu') {
         const secim = interaction.values[0];
-        
         const guncelEmbed = new EmbedBuilder().setColor('#ff0000');
-
         if (secim === 'ana_menu') {
             guncelEmbed
                 .setTitle('🏡 Ana Menü')
-                .setDescription('**!yardım** - Yardım menüsünü açar.\n**!rank** - Seviyenizi gösterir.\n**!avatar** - Profil resminizi gösterir.');
-        } else if (secim === 'kullanici') {
-            guncelEmbed
-                .setTitle('👑 Kullanıcı Komutları')
-                .setDescription('**!rank** - Seviye durumunuzu listeler.\n**!avatar** - Resminizi büyütür.');
+                .setDescription('!yardım - Yardım menüsünü açar.\n**!rank** - Seviyenizi
+                                gösterir.\n**!avatar** - Profil resminizi gösterir.');
+                } else if (secim === 'kullanici') {
+            guncelEmbed.setTitle('👑 Kullanıcı Komutları')
+                .setDescription('!rank - Seviye durumunuzu listeler.\n**!avatar** - Resminizi büyütür.');
         } else if (secim === 'yetkili') {
             guncelEmbed
                 .setTitle('🔨 Yetkili Komutları')
-                .setDescription('Bu kategoriye henüz bir yetkili komutu eklenmedi.');
-        }
-
-        // Discord'a yanıt vererek zaman aşımı (timeout) hatasını engelliyoruz
-        await interaction.update({ embeds: [guncelEmbed] });
+                .setDescription('!ban - Üyeyi yasaklar.\n**!unban** - Üyenin yasağını kaldırır (ID
+                                ile).\n**!mute** - Üyeyi 1 saat susturur.\n**!unmute** - Üyenin susturmasını kaldırır.');
+                }
+        
+     await interaction.update({ embeds: [guncelEmbed] });
     }
 });
-
-// ==========================================
-// BOT GİRİŞİ
-// ==========================================
 client.login(process.env.TOKEN);
