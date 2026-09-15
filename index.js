@@ -9,7 +9,6 @@ const {
 } = require('discord.js');
 
 const { joinVoiceChannel } = require('@discordjs/voice');
-const express = require('express');
 
 // ==========================================
 // DISCORD CLIENT
@@ -39,22 +38,6 @@ const fastKelimeHavuzu = [
     'kanada', 'vancouver', 'toronto', 'ottawa', 'ekonomi', 
     'dolar', 'akçaağaç', 'gurbet', 'yazılım', 'discord'
 ];
-
-// ==========================================
-// WEB SUNUCUSU (RAILWAY UYUMLU PORT AYARI)
-// ==========================================
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.get('/', (req, res) => {
-    res.send('Zen Bot Aktif!');
-});
-
-// Railway için "0.0.0.0" IP adresini dinlemek zorunludur, crash hatasını bu çözer.
-app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Web sunucusu ${PORT} portunda basariyla baslatildi.`);
-});
 
 // ==========================================
 // HAZIR OLUNCA
@@ -132,17 +115,6 @@ async function hedefBul(message) {
 }
 
 // ==========================================
-// ROL KONTROLÜ
-// ==========================================
-
-function rolKontrol(message, hedef) {
-    if (!message.member) return false;
-    if (message.author.id === message.guild.ownerId) return true;
-    if (hedef.roles.highest.position >= message.member.roles.highest.position) return false;
-    return true;
-}
-
-// ==========================================
 // MESAJ SİSTEMİ
 // ==========================================
 
@@ -212,9 +184,70 @@ client.on('messageCreate', async (message) => {
         const row = new ActionRowBuilder().addComponents(menu);
         message.channel.send({ embeds: [anaEmbed], components: [row] });
     }
+
+    // RANK KOMUTU
+    if (command === 'rank' || command === 'seviye') {
+        const targetMember = (await hedefBul(message)) || message.member;
+        const targetUser = targetMember.user;
+        
+        const lvl = levelNum.get(targetUser.id) || 1;
+        const xp = levelXP.get(targetUser.id) || 0;
+        const gerekenXp = lvl * 100;
+
+        const rankEmbed = new EmbedBuilder()
+            .setColor('#00ff00')
+            .setAuthor({ name: `${targetUser.username} - Seviye Bilgisi`, iconURL: targetUser.displayAvatarURL() })
+            .setDescription(`🚀 **Seviye:** ${lvl}\n✨ **XP:** ${xp} / ${gerekenXp}`)
+            .setFooter({ text: 'Mesaj yazarak XP kazanabilirsin!' });
+
+        message.reply({ embeds: [rankEmbed] });
+    }
+
+    // AVATAR KOMUTU
+    if (command === 'avatar') {
+        const targetMember = (await hedefBul(message)) || message.member;
+        const targetUser = targetMember.user;
+
+        const avatarEmbed = new EmbedBuilder()
+            .setColor('#0000ff')
+            .setTitle(`${targetUser.username} Kullanıcısının Avatarı`)
+            .setImage(targetUser.displayAvatarURL({ dynamic: true, size: 1024 }));
+
+        message.reply({ embeds: [avatarEmbed] });
+    }
 });
 
 // ==========================================
-// BOT GİRİŞİ (GİZLİ ŞİFRE OKUMA)
+// MENÜ SEÇİMLERİNİ DİNLEME SİSTEMİ (HATAYI ÇÖZEN KISIM)
+// ==========================================
+client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isStringSelectMenu()) return;
+
+    if (interaction.customId === 'yardim_menu') {
+        const secim = interaction.values[0];
+        
+        const guncelEmbed = new EmbedBuilder().setColor('#ff0000');
+
+        if (secim === 'ana_menu') {
+            guncelEmbed
+                .setTitle('🏡 Ana Menü')
+                .setDescription('**!yardım** - Yardım menüsünü açar.\n**!rank** - Seviyenizi gösterir.\n**!avatar** - Profil resminizi gösterir.');
+        } else if (secim === 'kullanici') {
+            guncelEmbed
+                .setTitle('👑 Kullanıcı Komutları')
+                .setDescription('**!rank** - Seviye durumunuzu listeler.\n**!avatar** - Resminizi büyütür.');
+        } else if (secim === 'yetkili') {
+            guncelEmbed
+                .setTitle('🔨 Yetkili Komutları')
+                .setDescription('Bu kategoriye henüz bir yetkili komutu eklenmedi.');
+        }
+
+        // Discord'a yanıt vererek zaman aşımı (timeout) hatasını engelliyoruz
+        await interaction.update({ embeds: [guncelEmbed] });
+    }
+});
+
+// ==========================================
+// BOT GİRİŞİ
 // ==========================================
 client.login(process.env.TOKEN);
