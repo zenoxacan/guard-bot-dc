@@ -15,7 +15,16 @@ const {
 } = require('@discordjs/voice');
 
 // =====================================================
-// DISCORD CLIENT
+// AYARLAR
+// =====================================================
+
+const PREFIX = '!';
+
+const GUILD_ID = '1549047532108382319';
+const VOICE_CHANNEL_ID = '1549047535039938633';
+
+// =====================================================
+// CLIENT
 // =====================================================
 
 const client = new Client({
@@ -28,16 +37,7 @@ const client = new Client({
 });
 
 // =====================================================
-// AYARLAR
-// =====================================================
-
-const PREFIX = '!';
-
-const VOICE_CHANNEL_ID = '1549047535039938633';
-const GUILD_ID = '1549047532108382319';
-
-// =====================================================
-// BELLEKLER
+// BELLEK
 // =====================================================
 
 const levelXP = new Map();
@@ -67,13 +67,17 @@ const fastKelimeHavuzu = [
 ];
 
 // =====================================================
-// READY
+// BOT HAZIR
 // =====================================================
 
-client.once('ready', () => {
+client.once('ready', async () => {
+    console.log('');
     console.log('======================================');
-    console.log(`${client.user.tag} olarak giriş yapıldı!`);
-    console.log(`Bot ID: ${client.user.id}`);
+    console.log('          ZEN SHOP BOT');
+    console.log('======================================');
+    console.log(`✅ Bot: ${client.user.tag}`);
+    console.log(`🆔 ID: ${client.user.id}`);
+    console.log(`🌐 Sunucu sayısı: ${client.guilds.cache.size}`);
     console.log('======================================');
 
     client.user.setPresence({
@@ -86,24 +90,26 @@ client.once('ready', () => {
         status: 'online'
     });
 
-    sesKanalinaBaglan();
-
-    // Her 15 dakikada bağlantıyı kontrol et.
-    setInterval(() => {
-        sesKanalinaBaglan();
-    }, 15 * 60 * 1000);
+    await sesKanalinaBaglan();
 });
 
 // =====================================================
-// SES KANALINA BAĞLAN
+// SES KANALI
 // =====================================================
 
-function sesKanalinaBaglan() {
+async function sesKanalinaBaglan() {
     try {
         const guild = client.guilds.cache.get(GUILD_ID);
 
         if (!guild) {
-            console.log('Ses bağlantısı: Sunucu bulunamadı.');
+            console.log('⚠️ Ses bağlantısı: Sunucu bulunamadı.');
+            return;
+        }
+
+        const channel = guild.channels.cache.get(VOICE_CHANNEL_ID);
+
+        if (!channel) {
+            console.log('⚠️ Ses bağlantısı: Ses kanalı bulunamadı.');
             return;
         }
 
@@ -121,14 +127,24 @@ function sesKanalinaBaglan() {
             selfMute: true
         });
 
-        console.log('Ses kanalına bağlanıldı.');
+        console.log(`🔊 Ses kanalına bağlandı: ${channel.name}`);
     } catch (error) {
-        console.error('Ses kanalına bağlanırken hata oluştu:', error.message);
+        console.error(
+            '❌ Ses kanalına bağlanırken hata:',
+            error.message
+        );
     }
 }
 
+// Bağlantı koparsa tekrar bağlanmayı dene.
+setInterval(() => {
+    if (client.isReady()) {
+        sesKanalinaBaglan();
+    }
+}, 5 * 60 * 1000);
+
 // =====================================================
-// HEDEF ÜYE BULMA
+// HEDEF KULLANICI BUL
 // =====================================================
 
 async function hedefBul(message) {
@@ -136,29 +152,34 @@ async function hedefBul(message) {
         return null;
     }
 
-    // Etiket kontrolü
+    // Etiket
     const mentionedUser = message.mentions.users.first();
 
     if (mentionedUser) {
         try {
-            return await message.guild.members.fetch(mentionedUser.id);
+            return await message.guild.members.fetch(
+                mentionedUser.id
+            );
         } catch {
             return null;
         }
     }
 
-    // Yanıtlanan mesaj kontrolü
+    // Yanıtlanan mesaj
     if (message.reference?.messageId) {
         try {
-            const replyMessage = await message.channel.messages.fetch(
-                message.reference.messageId
-            );
+            const replyMessage =
+                await message.channel.messages.fetch(
+                    message.reference.messageId
+                );
 
             if (replyMessage.author.bot) {
                 return null;
             }
 
-            return await message.guild.members.fetch(replyMessage.author.id);
+            return await message.guild.members.fetch(
+                replyMessage.author.id
+            );
         } catch {
             return null;
         }
@@ -168,7 +189,7 @@ async function hedefBul(message) {
 }
 
 // =====================================================
-// ROL HİYERARŞİ KONTROLÜ
+// ROL KONTROLÜ
 // =====================================================
 
 function rolKontrol(message, hedef) {
@@ -176,12 +197,12 @@ function rolKontrol(message, hedef) {
         return false;
     }
 
-    // Sunucu sahibi herkese işlem yapabilir.
+    // Sunucu sahibi rol hiyerarşisini geçebilir.
     if (message.author.id === message.guild.ownerId) {
         return true;
     }
 
-    // Bot kendi seviyesindeki / üstündeki üyeye işlem yapamaz.
+    // Hedef aynı veya daha yüksek roldeyse işlem yapılamaz.
     if (
         hedef.roles.highest.position >=
         message.member.roles.highest.position
@@ -193,15 +214,11 @@ function rolKontrol(message, hedef) {
 }
 
 // =====================================================
-// KENDİNE İŞLEM YAPMA KONTROLÜ
+// KENDİNE İŞLEM KONTROLÜ
 // =====================================================
 
 function kendineIslemKontrol(message, hedef) {
-    if (message.author.id === hedef.id) {
-        return false;
-    }
-
-    return true;
+    return message.author.id !== hedef.id;
 }
 
 // =====================================================
@@ -212,68 +229,70 @@ function xpEkle(message) {
     const userId = message.author.id;
 
     let xp = levelXP.get(userId) || 0;
-    let lvl = levelNum.get(userId) || 1;
+    let level = levelNum.get(userId) || 1;
 
-    const kazanilanXP = Math.floor(Math.random() * 5) + 3;
+    const kazanilanXP =
+        Math.floor(Math.random() * 5) + 3;
 
     xp += kazanilanXP;
 
-    const gerekenXP = lvl * 100;
+    const gerekenXP = level * 100;
 
     if (xp >= gerekenXP) {
-        lvl++;
+        level++;
 
-        levelNum.set(userId, lvl);
+        levelNum.set(userId, level);
         levelXP.set(userId, 0);
 
         message.channel.send(
             `🎉 **${message.author.username}** seviye atladı!\n` +
-            `🚀 Yeni seviye: **${lvl}**`
-        );
+            `🚀 Yeni seviye: **${level}**`
+        ).catch(() => {});
 
         return;
     }
 
     levelXP.set(userId, xp);
-    levelNum.set(userId, lvl);
+    levelNum.set(userId, level);
 }
 
 // =====================================================
-// AFK SİSTEMİ
+// AFK
 // =====================================================
 
 function afkKontrol(message) {
     const userId = message.author.id;
 
-    // Kullanıcı mesaj yazdıysa AFK kaldır.
+    // AFK olan kişi mesaj attı.
     if (afkKullanicilar.has(userId)) {
         afkKullanicilar.delete(userId);
 
         message.reply(
-            '👋 Hoş geldin! AFK durumunu temizledim.'
+            '👋 Hoş geldin! AFK durumunu kaldırdım.'
         ).catch(() => {});
     }
 
-    // Etiketlenen kullanıcı AFK mı?
+    // Etiketlenen kişi AFK.
     message.mentions.users.forEach((user) => {
         if (!afkKullanicilar.has(user.id)) {
             return;
         }
 
-        const sebep = afkKullanicilar.get(user.id);
+        const sebep =
+            afkKullanicilar.get(user.id);
 
         message.channel.send(
             `💤 **${user.username}** şu an AFK!\n` +
             `Sebep: \`${sebep}\``
-        );
+        ).catch(() => {});
     });
 }
 
 // =====================================================
-// HELP EMBED
+// YARDIM MENÜSÜ
 // =====================================================
 
-function yardimMenusuOlustur() {
+function yardimMenusu() {
     const embed = new EmbedBuilder()
         .setColor('#ff0000')
         .setAuthor({
@@ -282,38 +301,40 @@ function yardimMenusuOlustur() {
         })
         .setDescription(
             '🏡 **Ana Menü**\n' +
-            'Kategori panosuna geri dön.\n\n' +
+            'Yardım kategorilerini gösterir.\n\n' +
 
             '👑 **Kullanıcı**\n' +
-            'Kullanıcı komutları.\n\n' +
+            'Kullanıcı komutlarını gösterir.\n\n' +
 
             '🔨 **Yetkili**\n' +
-            'Yetkili araçları.'
+            'Yetkili komutlarını gösterir.'
         );
 
-    const menu = new StringSelectMenuBuilder()
-        .setCustomId('yardim_menu')
-        .setPlaceholder('📋 Bir kategori seçin...')
-        .addOptions([
-            {
-                label: 'Ana Menü',
-                value: 'ana_menu',
-                emoji: '🏡'
-            },
-            {
-                label: 'Kullanıcı',
-                value: 'kullanici',
-                emoji: '👑'
-            },
-            {
-                label: 'Yetkili',
-                value: 'yetkili',
-                emoji: '🔨'
-            }
-        ]);
+    const menu =
+        new StringSelectMenuBuilder()
+            .setCustomId('yardim_menu')
+            .setPlaceholder('📋 Bir kategori seçin...')
+            .addOptions([
+                {
+                    label: 'Ana Menü',
+                    value: 'ana_menu',
+                    emoji: '🏡'
+                },
+                {
+                    label: 'Kullanıcı',
+                    value: 'kullanici',
+                    emoji: '👑'
+                },
+                {
+                    label: 'Yetkili',
+                    value: 'yetkili',
+                    emoji: '🔨'
+                }
+            ]);
 
-    const row = new ActionRowBuilder()
-        .addComponents(menu);
+    const row =
+        new ActionRowBuilder()
+            .addComponents(menu);
 
     return {
         embeds: [embed],
@@ -322,37 +343,163 @@ function yardimMenusuOlustur() {
 }
 
 // =====================================================
-// MESAJ SİSTEMİ
+// MESAJLAR
 // =====================================================
 
 client.on('messageCreate', async (message) => {
     try {
-        // Bot mesajlarını yok say.
-        if (message.author.bot) {
-            return;
-        }
+        if (message.author.bot) return;
+        if (!message.guild) return;
 
-        // DM mesajlarını yok say.
-        if (!message.guild) {
-            return;
-        }
-
-        // =============================================
+        // -------------------------------
         // AFK
-        // =============================================
+        // -------------------------------
 
         afkKontrol(message);
 
-        // =============================================
-        // XP
-        // =============================================
+        // -------------------------------
+        // NORMAL MESAJ = XP
+        // -------------------------------
 
         if (!message.content.startsWith(PREFIX)) {
             xpEkle(message);
             return;
         }
 
-        // =============================================
-        // KOMUT PARÇALAMA
-        // =============================================
+        // -------------------------------
+        // KOMUT
+        // -------------------------------
+
+        const args = message.content
+            .slice(PREFIX.length)
+            .trim()
+            .split(/\s+/);
+
+        const command =
+            args.shift()?.toLowerCase();
+
+        if (!command) return;
+
+        // =================================================
+        // HELP
+        // =================================================
+
+        if (
+            command === 'help' ||
+            command === 'yardım' ||
+            command === 'yardim'
+        ) {
+            return message.channel.send(
+                yardimMenusu()
+            );
+        }
+
+        // =================================================
+        // RANK
+        // =================================================
+
+        if (
+            command === 'rank' ||
+            command === 'seviye'
+        ) {
+            const hedef =
+                (await hedefBul(message)) ||
+                message.member;
+
+            const user = hedef.user;
+
+            const level =
+                levelNum.get(user.id) || 1;
+
+            const xp =
+                levelXP.get(user.id) || 0;
+
+            const gerekenXP = level * 100;
+
+            const embed =
+                new EmbedBuilder()
+                    .setColor('#00ff00')
+                    .setAuthor({
+                        name:
+                            `${user.username} - Seviye Bilgisi`,
+                        iconURL:
+                            user.displayAvatarURL()
+                    })
+                    .setDescription(
+                        `🚀 **Seviye:** ${level}\n` +
+                        `✨ **XP:** ${xp} / ${gerekenXP}`
+                    )
+                    .setFooter({
+                        text:
+                            'Mesaj yazarak XP kazanabilirsin!'
+                    });
+
+            return message.reply({
+                embeds: [embed]
+            });
+        }
+
+        // =================================================
+        // AVATAR
+        // =================================================
+
+        if (command === 'avatar') {
+            const hedef =
+                (await hedefBul(message)) ||
+                message.member;
+
+            const user = hedef.user;
+
+            const embed =
+                new EmbedBuilder()
+                    .setColor('#0000ff')
+                    .setTitle(
+                        `${user.username} Kullanıcısının Avatarı`
+                    )
+                    .setImage(
+                        user.displayAvatarURL({
+                            size: 1024
+                        })
+                    );
+
+            return message.reply({
+                embeds: [embed]
+            });
+        }
+
+        // =================================================
+        // BAN
+        // =================================================
+
+        if (command === 'ban') {
+            if (
+                !message.member.permissions.has(
+                    PermissionFlagsBits.BanMembers
+                )
+            ) {
+                return message.reply(
+                    '❌ `Üyeleri Engelle` yetkin yok.'
+                );
+            }
+
+            const hedef =
+                await hedefBul(message);
+
+            if (!hedef) {
+                return message.reply(
+                    '❌ Bir kullanıcı etiketle veya mesajını yanıtla.'
+                );
+            }
+
+            if (!kendineIslemKontrol(message, hedef)) {
+                return message.reply(
+                    '❌ Kendine işlem uygulayamazsın.'
+                );
+            }
+
+            if (!rolKontrol(message, hedef)) {
+                return message.reply(
+                    '❌ Bu üyenin rolü seninle aynı veya senden daha yüksek.'
+                );
+            }
 ```
